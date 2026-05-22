@@ -1,0 +1,11 @@
+{
+  "name": "attendance-bot",
+  "version": "1.0.0",
+  "description": "Discord出席確認通知Bot",
+  "scripts": {
+    "push": "clasp push",
+    "open": "clasp open",
+    "logs": "clasp logs"
+  },
+  "devDependencies": {}
+}
