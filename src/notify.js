@@ -36,12 +36,15 @@ function dispatchNotifications() {
   var hour = now.getHours();
   var minute = now.getMinutes();
 
+  var sent = 0;
   CONFIG.CLASSES.forEach(function (cls) {
     var clsMinute = cls.minute || 0;
     // nearMinute()は±15分の誤差があるため、設定分の前後15分以内かを確認する
     var diff = Math.abs(minute - clsMinute);
     if (cls.dayOfWeek === dayOfWeek && cls.hour === hour && diff <= 15) {
+      if (sent > 0) Utilities.sleep(3000);
       sendNotification(cls);
+      sent++;
     }
   });
 }
