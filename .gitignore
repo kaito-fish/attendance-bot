@@ -11,3 +11,6 @@ worker/config.js
 wrangler.toml
 
 .wrangler/
+
+.dev.vars
+.dev.vars.*
