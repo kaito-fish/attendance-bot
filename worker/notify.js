@@ -37,16 +37,20 @@ async function sendNotification(cls, config, env) {
     payload.avatar_url = config.BOT_AVATAR_URL;
   }
 
-  const response = await fetch(env.WEBHOOK_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+  try {
+    const response = await fetch(env.WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
 
-  if (response.status !== 204) {
-    console.error(`Discord送信エラー [${cls.name}]:`, await response.text());
-  } else {
-    console.log(`出席確認通知を送信しました [${cls.name}]:`, new Date().toISOString());
+    if (response.status !== 204) {
+      console.error(`Discord送信エラー [${cls.name}]:`, await response.text());
+    } else {
+      console.log(`出席確認通知を送信しました [${cls.name}]:`, new Date().toISOString());
+    }
+  } catch (err) {
+    console.error(`Discord送信失敗(fetch例外) [${cls.name}]:`, err);
   }
 }
 
