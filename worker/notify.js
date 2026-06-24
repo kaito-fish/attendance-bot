@@ -50,6 +50,10 @@ async function sendNotification(cls, config, env) {
   }
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function dispatchNotifications(config, env, now = new Date()) {
   const { dayOfWeek, hour, minute } = getJstNow(now);
 
@@ -58,7 +62,10 @@ export async function dispatchNotifications(config, env, now = new Date()) {
     return cls.dayOfWeek === dayOfWeek && cls.hour === hour && minute === clsMinute;
   });
 
+  let sent = 0;
   for (const cls of matched) {
+    if (sent > 0) await sleep(3000);
     await sendNotification(cls, config, env);
+    sent++;
   }
 }
