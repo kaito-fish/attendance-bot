@@ -1,0 +1,92 @@
+# attendance-bot
+
+授業ごとに設定した曜日・時刻に、Discordへ出席確認の通知を送るBotです。
+Cloudflare Workers の Cron Triggers を使って定期実行します。
+
+> 旧バージョン(Google Apps Script + clasp)は `src/` に残っていますが、現在は `worker/` (Cloudflare Workers版) が稼働中の実装です。
+
+## 構成
+
+```
+worker/
+  index.js           # scheduledイベントのエントリポイント
+  notify.js          # 通知対象の判定・Discordへの送信処理
+  config.example.js  # 設定ファイルのテンプレート(コピーしてconfig.jsを作る)
+wrangler.example.toml # wrangler.tomlのテンプレート
+```
+
+`worker/config.js` と `wrangler.toml` は `.gitignore` で除外されているため、各自のテンプレートからコピーして作成してください。
+
+## セットアップ
+
+### 1. 依存パッケージのインストール
+
+```sh
+npm install
+```
+
+### 2. 設定ファイルの作成
+
+```sh
+cp worker/config.example.js worker/config.js
+cp wrangler.example.toml wrangler.toml
+```
+
+`worker/config.js` の `CLASSES` に、通知したい授業を追加・編集します。
+
+```js
+CLASSES: [
+  { name: '授業名A', url: 'https://example.com/classA', dayOfWeek: 2, hour: 9, minute: 0 },
+],
+```
+
+- `dayOfWeek` は 1=日, 2=月, 3=火, 4=水, 5=木, 6=金, 7=土 (JST)
+- `hour` / `minute` はJSTの時刻
+
+### 3. Cron Triggers の設定
+
+`wrangler.toml` の `[triggers].crons` に、`config.js` の各授業に対応するcron式をUTCで追加します(JST = UTC+9のため、時刻は-9時間して指定)。
+
+```toml
+[triggers]
+crons = [
+  "0 0 * * MON",  # 月 9:00 JST
+  "30 4 * * WED", # 水 13:30 JST
+]
+```
+
+曜日は数字指定だとQuartz形式(1=日始まり)と誤解しやすいため、`MON` `TUE` のような3文字略称を使ってください。
+
+### 4. Discord Webhook URLの設定
+
+Webhook URLはコードに含めず、Wrangler Secretとして登録します。
+
+```sh
+npm run secret:webhook
+```
+
+## 開発・デプロイ
+
+```sh
+npm run dev      # ローカルで起動 (wrangler dev)
+npm run deploy   # Cloudflare Workersへデプロイ
+npm run tail     # 本番ログをtail
+```
+
+ローカルでscheduledイベントを発火させて動作確認する場合は、以下のように実行します。
+
+```sh
+npx wrangler dev --test-scheduled
+```
+
+## 旧バージョン (Google Apps Script)
+
+`src/` 以下はGoogle Apps Script + claspによる旧実装です。
+
+```sh
+npm run push   # clasp push
+npm run open   # clasp open
+npm run logs   # clasp logs
+```
+
+設定方法は `worker/` 版と同様に `src/config.example.js` を `src/config.js` としてコピーして使用します。
