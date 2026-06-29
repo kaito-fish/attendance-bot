@@ -6,3 +6,11 @@ package-lock.json
 
 src/config.js
 
+worker/config.js
+
+wrangler.toml
+
+.wrangler/
+
+.dev.vars
+.dev.vars.*

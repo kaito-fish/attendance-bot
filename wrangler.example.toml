@@ -1,0 +1,14 @@
+name = "attendance-bot"
+main = "worker/index.js"
+compatibility_date = "2026-06-23"
+
+[observability]
+enabled = true
+
+# cronはUTCで指定する (JST = UTC+9)。曜日は数字だとQuartz形式(1=日,7=土)で誤りやすいため3文字略称で書く。
+# worker/config.js のCLASSESを変更した場合はここも合わせて更新する。
+[triggers]
+crons = [
+  "0 0 * * MON",  # 例: 月 9:00 JST
+  "30 4 * * WED", # 例: 水 13:30 JST
+]

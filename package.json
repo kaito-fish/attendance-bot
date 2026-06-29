@@ -5,7 +5,13 @@
   "scripts": {
     "push": "clasp push",
     "open": "clasp open",
-    "logs": "clasp logs"
+    "logs": "clasp logs",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail",
+    "secret:webhook": "wrangler secret put WEBHOOK_URL"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "wrangler": "^3.78.0"
+  }
 }
