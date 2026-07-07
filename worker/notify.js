@@ -1,4 +1,4 @@
-const WEEKDAY_MAP = { Sun: 1, Mon: 2, Tue: 3, Wed: 4, Thu: 5, Fri: 6, Sat: 7 };
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function getJstNow(date) {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -15,10 +15,15 @@ function getJstNow(date) {
   });
 
   return {
-    dayOfWeek: WEEKDAY_MAP[map.weekday],
+    dayOfWeek: map.weekday,
     hour: Number(map.hour),
     minute: Number(map.minute),
   };
+}
+
+function normalizeWeekday(value) {
+  const normalized = String(value).slice(0, 3).toLowerCase();
+  return WEEKDAYS.find((d) => d.toLowerCase() === normalized) ?? null;
 }
 
 function buildMessage(cls, config) {
@@ -63,7 +68,7 @@ export async function dispatchNotifications(config, env, now = new Date()) {
 
   const matched = config.CLASSES.filter((cls) => {
     const clsMinute = cls.minute || 0;
-    return cls.dayOfWeek === dayOfWeek && cls.hour === hour && minute === clsMinute;
+    return normalizeWeekday(cls.dayOfWeek) === dayOfWeek && cls.hour === hour && minute === clsMinute;
   });
 
   let sent = 0;

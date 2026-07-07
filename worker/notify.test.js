@@ -29,7 +29,7 @@ describe('dispatchNotifications', () => {
     // UTC 2026-07-06(月) 00:00 = JST 月曜 09:00
     const now = new Date('2026-07-06T00:00:00Z');
     const config = makeConfig([
-      { name: '授業A', url: 'https://example.com/a', dayOfWeek: 2, hour: 9, minute: 0 },
+      { name: '授業A', url: 'https://example.com/a', dayOfWeek: 'Mon', hour: 9, minute: 0 },
     ]);
 
     await dispatchNotifications(config, env, now);
@@ -48,7 +48,7 @@ describe('dispatchNotifications', () => {
     // UTC 2026-07-07(火) 15:30 = JST 水曜 00:30
     const now = new Date('2026-07-07T15:30:00Z');
     const config = makeConfig([
-      { name: '深夜講義', dayOfWeek: 4, hour: 0, minute: 30 },
+      { name: '深夜講義', dayOfWeek: 'Wed', hour: 0, minute: 30 },
     ]);
 
     await dispatchNotifications(config, env, now);
@@ -59,9 +59,9 @@ describe('dispatchNotifications', () => {
   it('曜日・時刻が一致しない授業には送らない', async () => {
     const now = new Date('2026-07-06T00:00:00Z'); // JST 月曜 09:00
     const config = makeConfig([
-      { name: '火曜の授業', dayOfWeek: 3, hour: 9, minute: 0 },
-      { name: '月曜10時の授業', dayOfWeek: 2, hour: 10, minute: 0 },
-      { name: '月曜9時30分の授業', dayOfWeek: 2, hour: 9, minute: 30 },
+      { name: '火曜の授業', dayOfWeek: 'Tue', hour: 9, minute: 0 },
+      { name: '月曜10時の授業', dayOfWeek: 'Mon', hour: 10, minute: 0 },
+      { name: '月曜9時30分の授業', dayOfWeek: 'Mon', hour: 9, minute: 30 },
     ]);
 
     await dispatchNotifications(config, env, now);
@@ -72,7 +72,18 @@ describe('dispatchNotifications', () => {
   it('minute省略時は0分として扱う', async () => {
     const now = new Date('2026-07-06T00:00:00Z'); // JST 月曜 09:00
     const config = makeConfig([
-      { name: 'minute省略', dayOfWeek: 2, hour: 9 },
+      { name: 'minute省略', dayOfWeek: 'Mon', hour: 9 },
+    ]);
+
+    await dispatchNotifications(config, env, now);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('dayOfWeekは大文字小文字を区別しない', async () => {
+    const now = new Date('2026-07-06T00:00:00Z'); // JST 月曜 09:00
+    const config = makeConfig([
+      { name: '大文字表記', dayOfWeek: 'MON', hour: 9, minute: 0 },
     ]);
 
     await dispatchNotifications(config, env, now);
@@ -83,7 +94,7 @@ describe('dispatchNotifications', () => {
   it('BOT_AVATAR_URL設定時はavatar_urlを含める', async () => {
     const now = new Date('2026-07-06T00:00:00Z');
     const config = {
-      ...makeConfig([{ name: '授業A', dayOfWeek: 2, hour: 9, minute: 0 }]),
+      ...makeConfig([{ name: '授業A', dayOfWeek: 'Mon', hour: 9, minute: 0 }]),
       BOT_AVATAR_URL: 'https://example.com/avatar.png',
     };
 
@@ -97,8 +108,8 @@ describe('dispatchNotifications', () => {
     vi.useFakeTimers();
     const now = new Date('2026-07-06T00:00:00Z');
     const config = makeConfig([
-      { name: '授業A', dayOfWeek: 2, hour: 9, minute: 0 },
-      { name: '授業B', dayOfWeek: 2, hour: 9, minute: 0 },
+      { name: '授業A', dayOfWeek: 'Mon', hour: 9, minute: 0 },
+      { name: '授業B', dayOfWeek: 'Mon', hour: 9, minute: 0 },
     ]);
 
     const promise = dispatchNotifications(config, env, now);
@@ -115,7 +126,7 @@ describe('dispatchNotifications', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     fetchMock.mockRejectedValue(new Error('network down'));
     const now = new Date('2026-07-06T00:00:00Z');
-    const config = makeConfig([{ name: '授業A', dayOfWeek: 2, hour: 9, minute: 0 }]);
+    const config = makeConfig([{ name: '授業A', dayOfWeek: 'Mon', hour: 9, minute: 0 }]);
 
     await expect(dispatchNotifications(config, env, now)).resolves.toBeUndefined();
     expect(errorSpy).toHaveBeenCalled();
