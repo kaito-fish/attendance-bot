@@ -4,6 +4,9 @@ function getJstNow(date) {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Asia/Tokyo',
     weekday: 'short',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
     hourCycle: 'h23',
@@ -16,9 +19,32 @@ function getJstNow(date) {
 
   return {
     dayOfWeek: map.weekday,
+    date: `${map.year}-${map.month}-${map.day}`,
     hour: Number(map.hour),
     minute: Number(map.minute),
   };
+}
+
+// 'YYYY-MM-DD'同士の文字列比較で期間内(両端含む)かを判定する
+function isWithinTerm(cls, date) {
+  if (cls.from && date < cls.from) return false;
+  if (cls.until && date > cls.until) return false;
+  return true;
+}
+
+const HOLIDAYS_API_URL = 'https://holidays-jp.github.io/api/v1/date.json';
+
+// 祝日ならその名前を返す。取得に失敗した場合はnull(=送信する側に倒す)
+async function getJpHolidayName(date) {
+  try {
+    const response = await fetch(HOLIDAYS_API_URL);
+    if (!response.ok) throw new Error(`status ${response.status}`);
+    const holidays = await response.json();
+    return holidays[date] ?? null;
+  } catch (err) {
+    console.warn('祝日データの取得に失敗したため、祝日チェックをスキップして送信します:', err);
+    return null;
+  }
 }
 
 function normalizeWeekday(value) {
@@ -111,18 +137,38 @@ function sleep(ms) {
 }
 
 export async function dispatchNotifications(config, env, now = new Date()) {
-  const { dayOfWeek, hour, minute } = getJstNow(now);
+  const { dayOfWeek, date, hour, minute } = getJstNow(now);
 
-  const matched = config.CLASSES.filter((cls) => {
+  const timeMatched = config.CLASSES.filter((cls) => {
     const clsMinute = cls.minute || 0;
     return normalizeWeekday(cls.dayOfWeek) === dayOfWeek && cls.hour === hour && minute === clsMinute;
   });
 
-  if (matched.length === 0) {
+  if (timeMatched.length === 0) {
     console.warn(
       `cronが発火しましたがマッチする授業がありません。config.jsとwrangler.tomlのcronsがズレている可能性があります (JST: ${dayOfWeek} ${hour}:${String(minute).padStart(2, '0')})`
     );
     return;
+  }
+
+  const matched = timeMatched.filter((cls) => {
+    if (isWithinTerm(cls, date)) return true;
+    console.log(`期間外(from/until)のためスキップします [${cls.name}] (${date})`);
+    return false;
+  });
+  if (matched.length === 0) return;
+
+  if ((config.EXCLUDE_DATES ?? []).includes(date)) {
+    console.log(`除外日のため通知をスキップします (${date})`);
+    return;
+  }
+
+  if (config.SKIP_JP_HOLIDAYS) {
+    const holidayName = await getJpHolidayName(date);
+    if (holidayName) {
+      console.log(`祝日(${holidayName})のため通知をスキップします (${date})`);
+      return;
+    }
   }
 
   const failedNames = [];

@@ -34,26 +34,28 @@ cp wrangler.example.toml wrangler.toml
 
 ```js
 CLASSES: [
-  { name: '授業名A', url: 'https://example.com/classA', dayOfWeek: 'Mon', hour: 9, minute: 0 },
+  { name: '授業名A', url: 'https://example.com/classA', dayOfWeek: 'Mon', hour: 9, minute: 0, until: '2026-08-07' },
 ],
 ```
 
 - `dayOfWeek` は `'Sun'` `'Mon'` `'Tue'` `'Wed'` `'Thu'` `'Fri'` `'Sat'` の3文字略称 (JST、大文字小文字は不問)
 - `hour` / `minute` はJSTの時刻
+- `from` / `until` (任意、`'YYYY-MM-DD'`、両端含む) で学期などの有効期間を指定できる。期間外は通知されない
 
-### 3. Cron Triggers の設定
+このほか、全体設定として以下が使えます。
 
-`wrangler.toml` の `[triggers].crons` に、`config.js` の各授業に対応するcron式をUTCで追加します(JST = UTC+9のため、時刻は-9時間して指定)。
+- `SKIP_JP_HOLIDAYS: true` — 日本の祝日([holidays-jp](https://holidays-jp.github.io/) API)は通知をスキップする(祝日にも授業がある場合は `false` のまま)
+- `EXCLUDE_DATES: ['2026-08-13']` — 休講日など、通知をスキップする日
 
-```toml
-[triggers]
-crons = [
-  "0 0 * * MON",  # 月 9:00 JST
-  "30 4 * * WED", # 水 13:30 JST
-]
+### 3. Cron Triggers の生成
+
+`wrangler.toml` の `[triggers].crons` は `config.js` の `CLASSES` から自動生成されます(JST→UTC変換もスクリプトが行うため、手で書く必要はありません)。
+
+```sh
+npm run generate:crons
 ```
 
-曜日は数字指定だとQuartz形式(1=日始まり)と誤解しやすいため、`MON` `TUE` のような3文字略称を使ってください。
+`npm run deploy` の際にも自動実行されるため、通常は `config.js` を編集してデプロイするだけで同期されます。
 
 ### 4. Discord Webhook URLの設定
 

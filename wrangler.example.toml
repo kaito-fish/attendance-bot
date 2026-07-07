@@ -5,10 +5,7 @@ compatibility_date = "2026-06-23"
 [observability]
 enabled = true
 
-# cronはUTCで指定する (JST = UTC+9)。曜日は数字だとQuartz形式(1=日,7=土)で誤りやすいため3文字略称で書く。
-# worker/config.js のCLASSESを変更した場合はここも合わせて更新する。
+# このブロックは scripts/generate-crons.mjs が worker/config.js から自動生成する。手で編集しない。
+# `npm run generate:crons` で更新される (npm run deploy 時にも自動実行)。
 [triggers]
-crons = [
-  "0 0 * * MON",  # 例: 月 9:00 JST
-  "30 4 * * WED", # 例: 水 13:30 JST
-]
+crons = []
