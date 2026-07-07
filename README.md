@@ -41,19 +41,15 @@ CLASSES: [
 - `dayOfWeek` は `'Sun'` `'Mon'` `'Tue'` `'Wed'` `'Thu'` `'Fri'` `'Sat'` の3文字略称 (JST、大文字小文字は不問)
 - `hour` / `minute` はJSTの時刻
 
-### 3. Cron Triggers の設定
+### 3. Cron Triggers の生成
 
-`wrangler.toml` の `[triggers].crons` に、`config.js` の各授業に対応するcron式をUTCで追加します(JST = UTC+9のため、時刻は-9時間して指定)。
+`wrangler.toml` の `[triggers].crons` は `config.js` の `CLASSES` から自動生成されます(JST→UTC変換もスクリプトが行うため、手で書く必要はありません)。
 
-```toml
-[triggers]
-crons = [
-  "0 0 * * MON",  # 月 9:00 JST
-  "30 4 * * WED", # 水 13:30 JST
-]
+```sh
+npm run generate:crons
 ```
 
-曜日は数字指定だとQuartz形式(1=日始まり)と誤解しやすいため、`MON` `TUE` のような3文字略称を使ってください。
+`npm run deploy` の際にも自動実行されるため、通常は `config.js` を編集してデプロイするだけで同期されます。
 
 ### 4. Discord Webhook URLの設定
 

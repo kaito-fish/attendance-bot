@@ -2,10 +2,12 @@
   "name": "attendance-bot",
   "version": "1.0.0",
   "description": "Discord出席確認通知Bot",
+  "type": "module",
   "scripts": {
     "test": "vitest run",
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "generate:crons": "node scripts/generate-crons.mjs",
+    "deploy": "npm run generate:crons && wrangler deploy",
     "tail": "wrangler tail",
     "secret:webhook": "wrangler secret put WEBHOOK_URL",
     "secret:admin-webhook": "wrangler secret put ADMIN_WEBHOOK_URL"
