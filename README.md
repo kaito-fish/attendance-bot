@@ -34,11 +34,11 @@ cp wrangler.example.toml wrangler.toml
 
 ```js
 CLASSES: [
-  { name: '授業名A', url: 'https://example.com/classA', dayOfWeek: 2, hour: 9, minute: 0 },
+  { name: '授業名A', url: 'https://example.com/classA', dayOfWeek: 'Mon', hour: 9, minute: 0 },
 ],
 ```
 
-- `dayOfWeek` は 1=日, 2=月, 3=火, 4=水, 5=木, 6=金, 7=土 (JST)
+- `dayOfWeek` は `'Sun'` `'Mon'` `'Tue'` `'Wed'` `'Thu'` `'Fri'` `'Sat'` の3文字略称 (JST、大文字小文字は不問)
 - `hour` / `minute` はJSTの時刻
 
 ### 3. Cron Triggers の設定
@@ -61,6 +61,12 @@ Webhook URLはコードに含めず、Wrangler Secretとして登録します。
 
 ```sh
 npm run secret:webhook
+```
+
+送信失敗時に別チャンネルへ通知したい場合は、管理者向けWebhook URLも登録します(任意)。
+
+```sh
+npm run secret:admin-webhook
 ```
 
 ## 開発・デプロイ

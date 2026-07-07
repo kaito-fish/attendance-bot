@@ -3,12 +3,15 @@
   "version": "1.0.0",
   "description": "Discord出席確認通知Bot",
   "scripts": {
+    "test": "vitest run",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "tail": "wrangler tail",
-    "secret:webhook": "wrangler secret put WEBHOOK_URL"
+    "secret:webhook": "wrangler secret put WEBHOOK_URL",
+    "secret:admin-webhook": "wrangler secret put ADMIN_WEBHOOK_URL"
   },
   "devDependencies": {
+    "vitest": "^4.1.10",
     "wrangler": "^4.107.0"
   }
 }
