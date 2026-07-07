@@ -71,6 +71,13 @@ export async function dispatchNotifications(config, env, now = new Date()) {
     return normalizeWeekday(cls.dayOfWeek) === dayOfWeek && cls.hour === hour && minute === clsMinute;
   });
 
+  if (matched.length === 0) {
+    console.warn(
+      `cronが発火しましたがマッチする授業がありません。config.jsとwrangler.tomlのcronsがズレている可能性があります (JST: ${dayOfWeek} ${hour}:${String(minute).padStart(2, '0')})`
+    );
+    return;
+  }
+
   let sent = 0;
   for (const cls of matched) {
     if (sent > 0) await sleep(3000);

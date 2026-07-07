@@ -56,7 +56,8 @@ describe('dispatchNotifications', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('曜日・時刻が一致しない授業には送らない', async () => {
+  it('曜日・時刻が一致しない授業には送らず、警告ログを出す', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const now = new Date('2026-07-06T00:00:00Z'); // JST 月曜 09:00
     const config = makeConfig([
       { name: '火曜の授業', dayOfWeek: 'Tue', hour: 9, minute: 0 },
@@ -67,6 +68,9 @@ describe('dispatchNotifications', () => {
     await dispatchNotifications(config, env, now);
 
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy.mock.calls[0][0]).toContain('Mon 9:00');
+    warnSpy.mockRestore();
   });
 
   it('minute省略時は0分として扱う', async () => {
