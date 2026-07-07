@@ -32,6 +32,30 @@ function buildMessage(cls, config) {
   return lines.join('\n');
 }
 
+function postWebhook(url, payload) {
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+const MAX_RETRY_AFTER_MS = 10_000;
+
+async function getRetryAfterMs(response) {
+  let seconds;
+  try {
+    const body = await response.json();
+    seconds = body.retry_after;
+  } catch {
+    // ボディがJSONでない場合はヘッダにフォールバック
+  }
+  if (typeof seconds !== 'number') seconds = Number(response.headers?.get?.('Retry-After'));
+  if (!Number.isFinite(seconds) || seconds < 0) seconds = 2;
+  return Math.min(seconds * 1000, MAX_RETRY_AFTER_MS);
+}
+
+// 成功時true、最終的に失敗したらfalseを返す
 async function sendNotification(cls, config, env) {
   const payload = {
     username: config.BOT_NAME,
@@ -43,19 +67,42 @@ async function sendNotification(cls, config, env) {
   }
 
   try {
-    const response = await fetch(env.WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    let response = await postWebhook(env.WEBHOOK_URL, payload);
 
-    if (response.status !== 204) {
-      console.error(`Discord送信エラー [${cls.name}]:`, await response.text());
-    } else {
-      console.log(`出席確認通知を送信しました [${cls.name}]:`, new Date().toISOString());
+    if (response.status === 429) {
+      const retryAfterMs = await getRetryAfterMs(response);
+      console.warn(`Discord rate limit [${cls.name}]: ${retryAfterMs}ms後にリトライします`);
+      await sleep(retryAfterMs);
+      response = await postWebhook(env.WEBHOOK_URL, payload);
     }
+
+    if (!response.ok) {
+      console.error(`Discord送信エラー [${cls.name}] (status ${response.status}):`, await response.text());
+      return false;
+    }
+
+    console.log(`出席確認通知を送信しました [${cls.name}]:`, new Date().toISOString());
+    return true;
   } catch (err) {
     console.error(`Discord送信失敗(fetch例外) [${cls.name}]:`, err);
+    return false;
+  }
+}
+
+// 送信失敗を管理者向けWebhook(任意設定のsecret)に通知する
+async function notifyAdminOfFailures(failedNames, config, env) {
+  if (!env.ADMIN_WEBHOOK_URL || failedNames.length === 0) return;
+
+  try {
+    const response = await postWebhook(env.ADMIN_WEBHOOK_URL, {
+      username: config.BOT_NAME,
+      content: `⚠️ 出席確認通知の送信に失敗しました: ${failedNames.join(', ')}`,
+    });
+    if (!response.ok) {
+      console.error(`管理者通知の送信エラー (status ${response.status}):`, await response.text());
+    }
+  } catch (err) {
+    console.error('管理者通知の送信失敗(fetch例外):', err);
   }
 }
 
@@ -78,10 +125,14 @@ export async function dispatchNotifications(config, env, now = new Date()) {
     return;
   }
 
+  const failedNames = [];
   let sent = 0;
   for (const cls of matched) {
     if (sent > 0) await sleep(3000);
-    await sendNotification(cls, config, env);
+    const ok = await sendNotification(cls, config, env);
+    if (!ok) failedNames.push(cls.name);
     sent++;
   }
+
+  await notifyAdminOfFailures(failedNames, config, env);
 }

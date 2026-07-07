@@ -63,6 +63,12 @@ Webhook URLはコードに含めず、Wrangler Secretとして登録します。
 npm run secret:webhook
 ```
 
+送信失敗時に別チャンネルへ通知したい場合は、管理者向けWebhook URLも登録します(任意)。
+
+```sh
+npm run secret:admin-webhook
+```
+
 ## 開発・デプロイ
 
 ```sh

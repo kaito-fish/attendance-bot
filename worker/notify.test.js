@@ -12,11 +12,24 @@ function makeConfig(classes) {
 
 const env = { WEBHOOK_URL: 'https://discord.example/webhook' };
 
+function makeResponse({ status = 204, body = '', json } = {}) {
+  return {
+    status,
+    ok: status >= 200 && status < 300,
+    text: async () => body,
+    json: async () => {
+      if (json === undefined) throw new Error('not json');
+      return json;
+    },
+    headers: { get: () => null },
+  };
+}
+
 describe('dispatchNotifications', () => {
   let fetchMock;
 
   beforeEach(() => {
-    fetchMock = vi.fn().mockResolvedValue({ status: 204, ok: true, text: async () => '' });
+    fetchMock = vi.fn().mockResolvedValue(makeResponse());
     vi.stubGlobal('fetch', fetchMock);
   });
 
@@ -134,6 +147,67 @@ describe('dispatchNotifications', () => {
 
     await expect(dispatchNotifications(config, env, now)).resolves.toBeUndefined();
     expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  it('429が返ったらretry_afterを待って1回リトライする', async () => {
+    vi.useFakeTimers();
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    fetchMock
+      .mockResolvedValueOnce(makeResponse({ status: 429, json: { retry_after: 0.5 } }))
+      .mockResolvedValueOnce(makeResponse({ status: 204 }));
+    const now = new Date('2026-07-06T00:00:00Z');
+    const config = makeConfig([{ name: '授業A', dayOfWeek: 'Mon', hour: 9, minute: 0 }]);
+
+    const promise = dispatchNotifications(config, env, now);
+    await vi.advanceTimersByTimeAsync(500);
+    await promise;
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    warnSpy.mockRestore();
+  });
+
+  it('429以外のエラーレスポンスではリトライしない', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    fetchMock.mockResolvedValue(makeResponse({ status: 500, body: 'server error' }));
+    const now = new Date('2026-07-06T00:00:00Z');
+    const config = makeConfig([{ name: '授業A', dayOfWeek: 'Mon', hour: 9, minute: 0 }]);
+
+    await dispatchNotifications(config, env, now);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  it('送信失敗時、ADMIN_WEBHOOK_URLが設定されていれば管理者に通知する', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const adminEnv = { ...env, ADMIN_WEBHOOK_URL: 'https://discord.example/admin' };
+    fetchMock.mockImplementation(async (url) =>
+      url === adminEnv.ADMIN_WEBHOOK_URL
+        ? makeResponse({ status: 204 })
+        : makeResponse({ status: 500, body: 'server error' })
+    );
+    const now = new Date('2026-07-06T00:00:00Z');
+    const config = makeConfig([{ name: '授業A', dayOfWeek: 'Mon', hour: 9, minute: 0 }]);
+
+    await dispatchNotifications(config, adminEnv, now);
+
+    const adminCall = fetchMock.mock.calls.find(([url]) => url === adminEnv.ADMIN_WEBHOOK_URL);
+    expect(adminCall).toBeDefined();
+    expect(JSON.parse(adminCall[1].body).content).toContain('授業A');
+    errorSpy.mockRestore();
+  });
+
+  it('ADMIN_WEBHOOK_URL未設定なら失敗してもWEBHOOK_URL以外に送らない', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    fetchMock.mockResolvedValue(makeResponse({ status: 500, body: 'server error' }));
+    const now = new Date('2026-07-06T00:00:00Z');
+    const config = makeConfig([{ name: '授業A', dayOfWeek: 'Mon', hour: 9, minute: 0 }]);
+
+    await dispatchNotifications(config, env, now);
+
+    expect(fetchMock.mock.calls.every(([url]) => url === env.WEBHOOK_URL)).toBe(true);
     errorSpy.mockRestore();
   });
 });
