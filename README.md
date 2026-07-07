@@ -3,8 +3,6 @@
 授業ごとに設定した曜日・時刻に、Discordへ出席確認の通知を送るBotです。
 Cloudflare Workers の Cron Triggers を使って定期実行します。
 
-> 旧バージョン(Google Apps Script + clasp)は `src/` に残っていますが、現在は `worker/` (Cloudflare Workers版) が稼働中の実装です。
-
 ## 構成
 
 ```
@@ -78,15 +76,3 @@ npm run tail     # 本番ログをtail
 ```sh
 npx wrangler dev --test-scheduled
 ```
-
-## 旧バージョン (Google Apps Script)
-
-`src/` 以下はGoogle Apps Script + claspによる旧実装です。
-
-```sh
-npm run push   # clasp push
-npm run open   # clasp open
-npm run logs   # clasp logs
-```
-
-設定方法は `worker/` 版と同様に `src/config.example.js` を `src/config.js` としてコピーして使用します。
