@@ -9,6 +9,6 @@
     "secret:webhook": "wrangler secret put WEBHOOK_URL"
   },
   "devDependencies": {
-    "wrangler": "^3.78.0"
+    "wrangler": "^4.107.0"
   }
 }
