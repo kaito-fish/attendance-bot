@@ -199,6 +199,95 @@ describe('dispatchNotifications', () => {
     errorSpy.mockRestore();
   });
 
+  it('untilを過ぎた授業には送らない(fromは範囲内なら送る)', async () => {
+    const now = new Date('2026-07-06T00:00:00Z'); // JST 月曜 09:00 (2026-07-06)
+    const config = makeConfig([
+      { name: '前期終了済み', dayOfWeek: 'Mon', hour: 9, minute: 0, until: '2026-07-05' },
+      { name: '後期開始前', dayOfWeek: 'Mon', hour: 9, minute: 0, from: '2026-10-01' },
+      { name: '期間内', dayOfWeek: 'Mon', hour: 9, minute: 0, from: '2026-04-01', until: '2026-08-07' },
+    ]);
+
+    await dispatchNotifications(config, env, now);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).content).toContain('期間内');
+  });
+
+  it('until当日(境界)は送る', async () => {
+    const now = new Date('2026-07-06T00:00:00Z'); // JST 2026-07-06
+    const config = makeConfig([
+      { name: '最終日', dayOfWeek: 'Mon', hour: 9, minute: 0, until: '2026-07-06' },
+    ]);
+
+    await dispatchNotifications(config, env, now);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('EXCLUDE_DATESに含まれる日は送らない', async () => {
+    const now = new Date('2026-07-06T00:00:00Z'); // JST 2026-07-06
+    const config = {
+      ...makeConfig([{ name: '授業A', dayOfWeek: 'Mon', hour: 9, minute: 0 }]),
+      EXCLUDE_DATES: ['2026-07-06'],
+    };
+
+    await dispatchNotifications(config, env, now);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('SKIP_JP_HOLIDAYS有効時、祝日は送らない', async () => {
+    const now = new Date('2026-07-06T00:00:00Z'); // JST 2026-07-06
+    fetchMock.mockImplementation(async (url) =>
+      url.includes('holidays-jp')
+        ? makeResponse({ status: 200, json: { '2026-07-06': 'テスト祝日' } })
+        : makeResponse({ status: 204 })
+    );
+    const config = {
+      ...makeConfig([{ name: '授業A', dayOfWeek: 'Mon', hour: 9, minute: 0 }]),
+      SKIP_JP_HOLIDAYS: true,
+    };
+
+    await dispatchNotifications(config, env, now);
+
+    expect(fetchMock.mock.calls.every(([url]) => url.includes('holidays-jp'))).toBe(true);
+  });
+
+  it('SKIP_JP_HOLIDAYS有効でも平日は送る', async () => {
+    const now = new Date('2026-07-06T00:00:00Z');
+    fetchMock.mockImplementation(async (url) =>
+      url.includes('holidays-jp')
+        ? makeResponse({ status: 200, json: { '2026-01-01': '元日' } })
+        : makeResponse({ status: 204 })
+    );
+    const config = {
+      ...makeConfig([{ name: '授業A', dayOfWeek: 'Mon', hour: 9, minute: 0 }]),
+      SKIP_JP_HOLIDAYS: true,
+    };
+
+    await dispatchNotifications(config, env, now);
+
+    expect(fetchMock.mock.calls.some(([url]) => url === env.WEBHOOK_URL)).toBe(true);
+  });
+
+  it('祝日データの取得に失敗した場合は送信側に倒す', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const now = new Date('2026-07-06T00:00:00Z');
+    fetchMock.mockImplementation(async (url) => {
+      if (url.includes('holidays-jp')) throw new Error('api down');
+      return makeResponse({ status: 204 });
+    });
+    const config = {
+      ...makeConfig([{ name: '授業A', dayOfWeek: 'Mon', hour: 9, minute: 0 }]),
+      SKIP_JP_HOLIDAYS: true,
+    };
+
+    await dispatchNotifications(config, env, now);
+
+    expect(fetchMock.mock.calls.some(([url]) => url === env.WEBHOOK_URL)).toBe(true);
+    warnSpy.mockRestore();
+  });
+
   it('ADMIN_WEBHOOK_URL未設定なら失敗してもWEBHOOK_URL以外に送らない', async () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     fetchMock.mockResolvedValue(makeResponse({ status: 500, body: 'server error' }));

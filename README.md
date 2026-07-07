@@ -34,12 +34,18 @@ cp wrangler.example.toml wrangler.toml
 
 ```js
 CLASSES: [
-  { name: '授業名A', url: 'https://example.com/classA', dayOfWeek: 'Mon', hour: 9, minute: 0 },
+  { name: '授業名A', url: 'https://example.com/classA', dayOfWeek: 'Mon', hour: 9, minute: 0, until: '2026-08-07' },
 ],
 ```
 
 - `dayOfWeek` は `'Sun'` `'Mon'` `'Tue'` `'Wed'` `'Thu'` `'Fri'` `'Sat'` の3文字略称 (JST、大文字小文字は不問)
 - `hour` / `minute` はJSTの時刻
+- `from` / `until` (任意、`'YYYY-MM-DD'`、両端含む) で学期などの有効期間を指定できる。期間外は通知されない
+
+このほか、全体設定として以下が使えます。
+
+- `SKIP_JP_HOLIDAYS: true` — 日本の祝日([holidays-jp](https://holidays-jp.github.io/) API)は通知をスキップする(祝日にも授業がある場合は `false` のまま)
+- `EXCLUDE_DATES: ['2026-08-13']` — 休講日など、通知をスキップする日
 
 ### 3. Cron Triggers の生成
 
