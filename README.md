@@ -3,6 +3,12 @@
 授業ごとに設定した曜日・時刻に、Discordへ出席確認の通知を送るBotです。
 Cloudflare Workers の Cron Triggers を使って定期実行します。
 
+## なぜCloudflare Workersか
+
+- **Cron Triggers を標準搭載** — サーバーレスの定期実行環境を用意しなくても、`wrangler.toml` に cron 式を書くだけでスケジュール実行できる
+- **Secrets管理が組み込み** — Discord Webhook URLのような機密情報を `wrangler secret` でコードに含めずに管理できる
+- **トリガーの時刻精度が高い** — GAS(Google Apps Script)の時間主導型トリガーは指定時刻からのずれが数分〜十数分単位で発生しうるが、Cloudflare Workersの Cron Triggers は指定時刻通りに近い精度で発動する
+
 ## 構成
 
 ```
