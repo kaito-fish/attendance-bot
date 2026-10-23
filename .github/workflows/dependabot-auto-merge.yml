@@ -14,38 +14,28 @@ jobs:
     # Check the PR author, not github.actor: a human reopening the PR becomes the actor.
     if: github.event.pull_request.user.login == 'dependabot[bot]'
     steps:
-      - name: Require alerts token
-        env:
-          ALERTS_TOKEN: ${{ secrets.DEPENDABOT_ALERTS_TOKEN }}
-        run: |
-          if [ -z "$ALERTS_TOKEN" ]; then
-            echo "::error::DEPENDABOT_ALERTS_TOKEN secret is not set; cannot tell security updates apart."
-            exit 1
-          fi
-
-      # alert-lookup needs a PAT: GITHUB_TOKEN cannot read Dependabot alerts.
+      # Verifies the PR is genuinely from Dependabot (author + signed commit).
       - name: Fetch Dependabot metadata
         id: metadata
         uses: dependabot/fetch-metadata@v2
-        with:
-          github-token: ${{ secrets.DEPENDABOT_ALERTS_TOKEN }}
-          alert-lookup: true
 
-      # The top-level ghsa-id output only reflects the first dependency, so check every one.
-      - name: Check for security advisory
-        id: security
-        env:
-          DEPS_JSON: ${{ steps.metadata.outputs.updated-dependencies-json }}
+      # Without dependabot.yml, Dependabot only opens PRs for security alerts,
+      # so every Dependabot PR here is a security update. If version updates are
+      # ever configured, stop auto-merging rather than merge them too.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+          sparse-checkout: .github
+
+      - name: Ensure version updates are not configured
         run: |
-          echo "$DEPS_JSON" | jq -r '.[] | "\(.dependencyName): ghsa=\(.ghsaId // "")"'
-          if echo "$DEPS_JSON" | jq -e 'any(.[]; (.ghsaId // "") != "")' > /dev/null; then
-            echo "is-security=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "is-security=false" >> "$GITHUB_OUTPUT"
+          if [ -f .github/dependabot.yml ] || [ -f .github/dependabot.yaml ]; then
+            echo "::error::dependabot.yml exists, so Dependabot PRs may be regular version updates. Auto-merge disabled."
+            exit 1
           fi
 
-      - name: Enable auto-merge for security updates
-        if: steps.security.outputs.is-security == 'true'
+      - name: Enable auto-merge
+        if: steps.metadata.outputs.dependency-names != ''
         run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
