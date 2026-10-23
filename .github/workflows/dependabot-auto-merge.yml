@@ -7,7 +7,6 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  security-events: read
 
 jobs:
   auto-merge:
@@ -15,40 +14,28 @@ jobs:
     # Check the PR author, not github.actor: a human reopening the PR becomes the actor.
     if: github.event.pull_request.user.login == 'dependabot[bot]'
     steps:
+      # Verifies the PR is genuinely from Dependabot (author + signed commit).
       - name: Fetch Dependabot metadata
         id: metadata
         uses: dependabot/fetch-metadata@v2
+
+      # Without dependabot.yml, Dependabot only opens PRs for security alerts,
+      # so every Dependabot PR here is a security update. If version updates are
+      # ever configured, stop auto-merging rather than merge them too.
+      - uses: actions/checkout@v4
         with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
-          alert-lookup: true
+          ref: ${{ github.base_ref }}
+          sparse-checkout: .github
 
-      # fetch-metadata's ghsa-id/alert-state outputs are only populated for
-      # single-dependency PRs. This repo's security-update PRs usually bump an
-      # ancestor dependency alongside the vulnerable one (multi-dependency), so
-      # we also cross-check the updated package names against open Dependabot
-      # alerts directly.
-      - name: Check updated dependencies against open security alerts
-        id: security-check
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DEP_NAMES: ${{ steps.metadata.outputs.dependency-names }}
+      - name: Ensure version updates are not configured
         run: |
-          alert_names=$(gh api "repos/${{ github.repository }}/dependabot/alerts?state=open" --jq '.[].dependency.package.name' | sort -u)
-          is_security=false
-          IFS=',' read -ra deps <<< "$DEP_NAMES"
-          for dep in "${deps[@]}"; do
-            dep_trimmed=$(echo "$dep" | xargs)
-            if echo "$alert_names" | grep -qxF "$dep_trimmed"; then
-              is_security=true
-              break
-            fi
-          done
-          echo "is-security=$is_security" >> "$GITHUB_OUTPUT"
+          if [ -f .github/dependabot.yml ] || [ -f .github/dependabot.yaml ]; then
+            echo "::error::dependabot.yml exists, so Dependabot PRs may be regular version updates. Auto-merge disabled."
+            exit 1
+          fi
 
-      # Only PRs tied to an open security alert are auto-merged.
-      # Regular version-bump PRs (no dependabot.yml in this repo) are left for manual review.
-      - name: Enable auto-merge for security updates
-        if: steps.metadata.outputs.ghsa-id != '' || steps.security-check.outputs.is-security == 'true'
+      - name: Enable auto-merge
+        if: steps.metadata.outputs.dependency-names != ''
         run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
