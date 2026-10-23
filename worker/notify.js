@@ -52,6 +52,21 @@ function normalizeWeekday(value) {
   return WEEKDAYS.find((d) => d.toLowerCase() === normalized) ?? null;
 }
 
+// 振替授業(SUBSTITUTE_DATES)に該当する日は、その日に適用する時間割の曜日を返す
+function getEffectiveDayOfWeek(date, actualDayOfWeek, config) {
+  const substitute = (config.SUBSTITUTE_DATES ?? []).find((s) => s.date === date);
+  if (!substitute) return actualDayOfWeek;
+
+  const followedDayOfWeek = normalizeWeekday(substitute.dayOfWeek);
+  if (!followedDayOfWeek) {
+    console.warn(`SUBSTITUTE_DATESのdayOfWeekが不正です (${date}): ${substitute.dayOfWeek}`);
+    return actualDayOfWeek;
+  }
+
+  console.log(`振替授業のため${followedDayOfWeek}の時間割を適用します (${date})`);
+  return followedDayOfWeek;
+}
+
 function buildMessage(cls, config) {
   const lines = [`**【${cls.name}】** ${config.MESSAGE}`];
   if (cls.url) lines.push(cls.url);
@@ -138,10 +153,11 @@ function sleep(ms) {
 
 export async function dispatchNotifications(config, env, now = new Date()) {
   const { dayOfWeek, date, hour, minute } = getJstNow(now);
+  const effectiveDayOfWeek = getEffectiveDayOfWeek(date, dayOfWeek, config);
 
   const timeMatched = config.CLASSES.filter((cls) => {
     const clsMinute = cls.minute || 0;
-    return normalizeWeekday(cls.dayOfWeek) === dayOfWeek && cls.hour === hour && minute === clsMinute;
+    return normalizeWeekday(cls.dayOfWeek) === effectiveDayOfWeek && cls.hour === hour && minute === clsMinute;
   });
 
   if (timeMatched.length === 0) {

@@ -236,6 +236,38 @@ describe('dispatchNotifications', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('SUBSTITUTE_DATESに該当する日は、その曜日の授業として送る', async () => {
+    const now = new Date('2026-11-04T00:00:00Z'); // JST 水曜 09:00 (2026-11-04)
+    const config = {
+      ...makeConfig([
+        { name: '月曜授業', dayOfWeek: 'Mon', hour: 9, minute: 0 },
+        { name: '水曜授業', dayOfWeek: 'Wed', hour: 9, minute: 0 },
+      ]),
+      SUBSTITUTE_DATES: [{ date: '2026-11-04', dayOfWeek: 'Mon' }],
+    };
+
+    await dispatchNotifications(config, env, now);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).content).toContain('月曜授業');
+  });
+
+  it('SUBSTITUTE_DATESに該当しない日はそのままの曜日で判定する', async () => {
+    const now = new Date('2026-11-11T00:00:00Z'); // JST 水曜 09:00 (2026-11-11、振替対象外)
+    const config = {
+      ...makeConfig([
+        { name: '月曜授業', dayOfWeek: 'Mon', hour: 9, minute: 0 },
+        { name: '水曜授業', dayOfWeek: 'Wed', hour: 9, minute: 0 },
+      ]),
+      SUBSTITUTE_DATES: [{ date: '2026-11-04', dayOfWeek: 'Mon' }],
+    };
+
+    await dispatchNotifications(config, env, now);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).content).toContain('水曜授業');
+  });
+
   it('SKIP_JP_HOLIDAYS有効時、祝日は送らない', async () => {
     const now = new Date('2026-07-06T00:00:00Z'); // JST 2026-07-06
     fetchMock.mockImplementation(async (url) =>

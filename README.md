@@ -52,6 +52,7 @@ CLASSES: [
 
 - `SKIP_JP_HOLIDAYS: true` — 日本の祝日([holidays-jp](https://holidays-jp.github.io/) API)は通知をスキップする(祝日にも授業がある場合は `false` のまま)
 - `EXCLUDE_DATES: ['2026-08-13']` — 休講日など、通知をスキップする日
+- `SUBSTITUTE_DATES: [{ date: '2026-11-04', dayOfWeek: 'Mon' }]` — 振替授業など、特定の日付だけ別の曜日の時間割を適用する(例: 11/4(水)に月曜日の`CLASSES`を実施)。`generate:crons` の再実行が必要
 
 ### 3. Cron Triggers の生成
 

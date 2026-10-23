@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toUtcCron, buildCronLines, replaceTriggersBlock } from './generate-crons.mjs';
+import { toUtcCron, buildCronLines, buildSubstituteCronLines, replaceTriggersBlock } from './generate-crons.mjs';
 
 describe('toUtcCron', () => {
   it('JSTの時刻を-9時間してUTCのcron式にする', () => {
@@ -38,6 +38,37 @@ describe('buildCronLines', () => {
     ]);
     expect(lines).toHaveLength(1);
     expect(lines[0]).toContain('授業A / 授業B');
+  });
+});
+
+describe('buildSubstituteCronLines', () => {
+  const classes = [
+    { name: '月曜授業', dayOfWeek: 'Mon', hour: 9, minute: 0 },
+    { name: '水曜授業', dayOfWeek: 'Wed', hour: 14, minute: 50 },
+  ];
+
+  it('振替先の曜日の授業から、指定日だけ発火するcronを生成する', () => {
+    const lines = buildSubstituteCronLines(classes, [{ date: '2026-11-04', dayOfWeek: 'Mon' }]);
+    expect(lines).toEqual(['  "0 0 4 11 *", # 月曜授業 2026-11-04(MONの時間割) 9:00 JST [振替]']);
+  });
+
+  it('JST 9時未満は前日にずれる', () => {
+    const lines = buildSubstituteCronLines(
+      [{ name: '早朝授業', dayOfWeek: 'Mon', hour: 8, minute: 30 }],
+      [{ date: '2026-11-04', dayOfWeek: 'Mon' }]
+    );
+    expect(lines).toEqual(['  "30 23 3 11 *", # 早朝授業 2026-11-04(MONの時間割) 8:30 JST [振替]']);
+  });
+
+  it('振替先の曜日に該当する授業がなければ何も生成しない', () => {
+    const lines = buildSubstituteCronLines(classes, [{ date: '2026-11-04', dayOfWeek: 'Tue' }]);
+    expect(lines).toEqual([]);
+  });
+
+  it('不正なdayOfWeekはエラーにする', () => {
+    expect(() => buildSubstituteCronLines(classes, [{ date: '2026-11-04', dayOfWeek: 'XYZ' }])).toThrow(
+      /dayOfWeek/
+    );
   });
 });
 

@@ -15,6 +15,13 @@ export const CONFIG = {
     // '2026-08-13',
   ],
 
+  // 振替授業: 特定の日付だけ別の曜日の時間割を適用する(例: 水曜日が月曜授業になる)
+  // dayOfWeekに指定した曜日のCLASSESが、dateの実際の曜日の代わりに発火する
+  // (date自体の通常授業がある場合は、別途EXCLUDE_DATESで除外するか判断する)
+  SUBSTITUTE_DATES: [
+    // { date: '2026-11-04', dayOfWeek: 'Mon' },
+  ],
+
   // 授業ごとに追加・編集する。dayOfWeekは 'Sun'〜'Sat' の3文字略称(JST)
   // from/until ('YYYY-MM-DD'、両端含む) で学期などの有効期間を指定できる(省略可)
   // wrangler.toml のcron式は scripts/generate-crons.mjs がここから自動生成する
