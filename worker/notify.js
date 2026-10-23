@@ -32,6 +32,11 @@ function isWithinTerm(cls, date) {
   return true;
 }
 
+// EXCLUDE_DATESの要素は 'YYYY-MM-DD' の単日か、{ from, until } の期間(両端含む)
+function isExcludedDate(excludeDates, date) {
+  return excludeDates.some((entry) => (typeof entry === 'string' ? entry === date : isWithinTerm(entry, date)));
+}
+
 const HOLIDAYS_API_URL = 'https://holidays-jp.github.io/api/v1/date.json';
 
 // 祝日ならその名前を返す。取得に失敗した場合はnull(=送信する側に倒す)
@@ -174,7 +179,7 @@ export async function dispatchNotifications(config, env, now = new Date()) {
   });
   if (matched.length === 0) return;
 
-  if ((config.EXCLUDE_DATES ?? []).includes(date)) {
+  if (isExcludedDate(config.EXCLUDE_DATES ?? [], date)) {
     console.log(`除外日のため通知をスキップします (${date})`);
     return;
   }

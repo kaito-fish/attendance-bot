@@ -11,8 +11,10 @@ export const CONFIG = {
   SKIP_JP_HOLIDAYS: false,
 
   // 休講日など、通知をスキップする日 ('YYYY-MM-DD'、JST)
+  // 期間でまとめて止める場合は { from, until } (両端含む) で指定できる
   EXCLUDE_DATES: [
     // '2026-08-13',
+    // { from: '2026-12-26', until: '2027-01-07' },
   ],
 
   // 振替授業: 特定の日付だけ別の曜日の時間割を適用する(例: 水曜日が月曜授業になる)

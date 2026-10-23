@@ -236,6 +236,20 @@ describe('dispatchNotifications', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('EXCLUDE_DATESの期間指定({ from, until })に含まれる日は送らない(両端含む)', async () => {
+    const config = {
+      ...makeConfig([{ name: '授業A', dayOfWeek: 'Mon', hour: 9, minute: 0 }]),
+      EXCLUDE_DATES: [{ from: '2026-07-06', until: '2026-07-13' }],
+    };
+
+    await dispatchNotifications(config, env, new Date('2026-07-06T00:00:00Z')); // 開始日
+    await dispatchNotifications(config, env, new Date('2026-07-13T00:00:00Z')); // 終了日
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    await dispatchNotifications(config, env, new Date('2026-07-20T00:00:00Z')); // 期間後
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('SUBSTITUTE_DATESに該当する日は、その曜日の授業として送る', async () => {
     const now = new Date('2026-11-04T00:00:00Z'); // JST 水曜 09:00 (2026-11-04)
     const config = {
