@@ -7,6 +7,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  security-events: read
 
 jobs:
   auto-merge:
@@ -20,10 +21,33 @@ jobs:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           alert-lookup: true
 
-      # Only PRs tied to a GitHub security advisory are auto-merged.
+      # fetch-metadata's ghsa-id/alert-state outputs are only populated for
+      # single-dependency PRs. This repo's security-update PRs usually bump an
+      # ancestor dependency alongside the vulnerable one (multi-dependency), so
+      # we also cross-check the updated package names against open Dependabot
+      # alerts directly.
+      - name: Check updated dependencies against open security alerts
+        id: security-check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEP_NAMES: ${{ steps.metadata.outputs.dependency-names }}
+        run: |
+          alert_names=$(gh api "repos/${{ github.repository }}/dependabot/alerts?state=open" --jq '.[].dependency.package.name' | sort -u)
+          is_security=false
+          IFS=',' read -ra deps <<< "$DEP_NAMES"
+          for dep in "${deps[@]}"; do
+            dep_trimmed=$(echo "$dep" | xargs)
+            if echo "$alert_names" | grep -qxF "$dep_trimmed"; then
+              is_security=true
+              break
+            fi
+          done
+          echo "is-security=$is_security" >> "$GITHUB_OUTPUT"
+
+      # Only PRs tied to an open security alert are auto-merged.
       # Regular version-bump PRs (no dependabot.yml in this repo) are left for manual review.
       - name: Enable auto-merge for security updates
-        if: steps.metadata.outputs.ghsa-id != ''
+        if: steps.metadata.outputs.ghsa-id != '' || steps.security-check.outputs.is-security == 'true'
         run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
